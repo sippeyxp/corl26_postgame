@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CoRL 2026 Austin — Interactive Session &amp; Video Archive</title>
+  <meta name="description" content="Rewatch CoRL 2026 talks with exact video timestamps, AI-extracted subsections, summaries, key slide/robot visuals, built-in YouTube player, and full-text search across presenters, papers, and topics." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Code:wght@400..600&amp;family=Google+Sans+Flex:opsz,wght@8..144,400..700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,400..500,0..1,0&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <!-- Sticky Header -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a href="#" class="brand" id="brandReset" title="Reset filters and return to opening session">
+        <span class="brand-mark" aria-hidden="true">CoRL’26</span>
+        <div class="brand-copy">
+          <span class="brand-title">Conference on Robot Learning</span>
+          <span class="brand-sub" id="headerStats">Nov 9–11, 2026 · Austin, TX · Interactive Video Archive</span>
+        </div>
+      </a>
+
+      <div class="search-shell" role="search">
+        <span class="material-symbols-outlined search-icon" aria-hidden="true">search</span>
+        <input
+          type="search"
+          id="searchInput"
+          placeholder="Search presenters, paper titles, topics, labs, or subsection concepts…"
+          autocomplete="off"
+          aria-label="Search talks, presenters, papers, topics, and subsections"
+        />
+        <span class="search-count" id="searchCount" hidden></span>
+        <button type="button" class="icon-btn clear-btn" id="clearSearchBtn" title="Clear search (Esc)" hidden aria-label="Clear search">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+        <kbd class="search-kbd" id="searchKbd" aria-hidden="true">/</kbd>
+      </div>
+
+      <div class="topbar-actions">
+        <div class="view-toggle" role="tablist" aria-label="Layout mode">
+          <button type="button" class="seg-btn is-active" data-view="theater" id="viewTheaterBtn" role="tab" aria-selected="true">
+            <span class="material-symbols-outlined">smart_display</span>
+            <span>Player</span>
+          </button>
+          <button type="button" class="seg-btn" data-view="catalog" id="viewCatalogBtn" role="tab" aria-selected="false">
+            <span class="material-symbols-outlined">grid_view</span>
+            <span>Browse All</span>
+          </button>
+          <button type="button" class="seg-btn" data-view="papers" id="viewPapersBtn" role="tab" aria-selected="false">
+            <span class="material-symbols-outlined">article</span>
+            <span>687 Papers</span>
+          </button>
+        </div>
+
+        <button type="button" class="icon-btn theme-btn" id="themeToggleBtn" title="Toggle light/dark appearance" aria-label="Toggle color theme">
+          <span class="material-symbols-outlined" id="themeIcon">dark_mode</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter Strip -->
+    <div class="filter-bar">
+      <div class="filter-inner">
+        <div class="filter-group" id="dayFilters" role="group" aria-label="Filter by day">
+          <button type="button" class="chip is-active" data-day="all">All Days</button>
+          <button type="button" class="chip" data-day="mon">Mon Nov 9</button>
+          <button type="button" class="chip" data-day="tue">Tue Nov 10</button>
+          <button type="button" class="chip" data-day="wed_am">Wed Nov 11 · Hilton</button>
+          <button type="button" class="chip" data-day="wed_pm">Wed Nov 11 · Bass Hall</button>
+        </div>
+
+        <span class="filter-divider" aria-hidden="true"></span>
+
+        <div class="filter-group" id="typeFilters" role="group" aria-label="Filter by session type">
+          <button type="button" class="chip is-active" data-type="all">All Sessions</button>
+          <button type="button" class="chip" data-type="keynote_group">Keynotes &amp; Fireside</button>
+          <button type="button" class="chip" data-type="early_career_keynote">Early Career</button>
+          <button type="button" class="chip" data-type="oral">Orals</button>
+          <button type="button" class="chip" data-type="spotlight">Spotlights</button>
+          <button type="button" class="chip" data-type="panel_awards">Panel &amp; Awards</button>
+          <button type="button" class="chip" data-type="sponsor">Sponsor Talks</button>
+          <button type="button" class="chip chip-award" data-type="award_finalist">
+            <span class="material-symbols-outlined chip-icon">workspace_premium</span>Award Finalists
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Active Filter Banner when topic/query active -->
+  <div class="active-filter-strip" id="activeFilterStrip" hidden>
+    <div class="active-filter-inner">
+      <span id="activeFilterSummary"></span>
+      <button type="button" class="text-btn" id="resetAllFiltersBtn">Reset all filters</button>
+    </div>
+  </div>
+
+  <!-- Main Workspace -->
+  <main class="workspace" id="workspace">
+    <!-- VIEW 1: SPLIT THEATER + SCHEDULE NAVIGATOR -->
+    <section class="theater-layout" id="theaterView">
+      <!-- Left Column: Embedded YouTube Player + Active Talk + Visual Subsections -->
+      <div class="stage-col">
+        <div class="player-card">
+          <div class="video-aspect">
+            <div id="ytPlayerMount"></div>
+          </div>
+
+          <!-- Proportional Subsection Timeline Scrubber -->
+          <div class="chapter-scrubber-wrap" id="chapterScrubberWrap">
+            <div class="chapter-scrubber" id="chapterScrubber" aria-label="Talk subsections timeline"></div>
+            <div class="scrubber-tooltip" id="scrubberTooltip" hidden></div>
+          </div>
+
+          <!-- Transport & Playback Controls -->
+          <div class="player-controls">
+            <div class="transport-left">
+              <button type="button" class="ctrl-btn" id="prevTalkBtn" title="Previous talk">
+                <span class="material-symbols-outlined">skip_previous</span>
+              </button>
+              <button type="button" class="ctrl-btn" id="rewind10Btn" title="Back 10 seconds">
+                <span class="material-symbols-outlined">replay_10</span>
+              </button>
+              <button type="button" class="ctrl-btn" id="forward10Btn" title="Forward 10 seconds">
+                <span class="material-symbols-outlined">forward_10</span>
+              </button>
+              <button type="button" class="ctrl-btn" id="nextTalkBtn" title="Next talk">
+                <span class="material-symbols-outlined">skip_next</span>
+              </button>
+              <div class="clock-pill" title="Current livestream timestamp">
+                <span class="clock-dot" id="livePlayDot"></span>
+                <span id="currentClock">00:00</span>
+                <span class="clock-sep">/</span>
+                <span id="talkEndClock">00:00</span>
+              </div>
+            </div>
+
+            <div class="transport-right">
+              <div class="speed-group" aria-label="Playback speed">
+                <button type="button" class="speed-btn is-active" data-rate="1">1×</button>
+                <button type="button" class="speed-btn" data-rate="1.25">1.25×</button>
+                <button type="button" class="speed-btn" data-rate="1.5">1.5×</button>
+                <button type="button" class="speed-btn" data-rate="2">2×</button>
+              </div>
+              <button type="button" class="action-pill" id="shareMomentBtn" title="Copy deep link to this exact timestamp">
+                <span class="material-symbols-outlined">link</span>
+                <span>Share Moment</span>
+              </button>
+              <a class="action-pill" id="ytExternalLink" href="https://www.corl.org/program" target="_blank" rel="noopener" title="Open at exact timestamp on YouTube">
+                <span class="material-symbols-outlined">open_in_new</span>
+                <span>YouTube</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Sync Banner if stream plays into adjacent talk -->
+          <div class="stream-sync-bar" id="streamSyncBar" hidden>
+            <span id="streamSyncText"></span>
+            <button type="button" class="text-btn" id="streamSyncFollowBtn">Load talk details</button>
+          </div>
+        </div>
+
+        <!-- Active Talk Metadata -->
+        <article class="active-talk-card" id="activeTalkCard">
+          <div class="talk-meta-top" id="activeTalkBadges"></div>
+          <h1 class="active-talk-title" id="activeTalkTitle">Loading CoRL 2026 Sessions…</h1>
+          <div class="active-talk-byline" id="activeTalkByline"></div>
+          <p class="active-talk-summary" id="activeTalkSummary"></p>
+          <div class="topic-row" id="activeTalkTopics"></div>
+
+          <details class="extra-details" id="activeTalkExtra" hidden>
+            <summary>Official Abstract &amp; Speaker Biography</summary>
+            <div class="extra-details-body" id="activeTalkExtraBody"></div>
+          </details>
+        </article>
+
+        <!-- Subsections & Key Visuals Storyboard -->
+        <section class="subsections-section" aria-labelledby="subsectionsHeading">
+          <div class="section-header-row">
+            <div>
+              <h2 class="section-heading" id="subsectionsHeading">Subsections &amp; Key Visuals</h2>
+              <p class="section-sub" id="subsectionsSubheading">Click any chapter card to jump the built-in player to that exact moment, or zoom the slide/demo visual.</p>
+            </div>
+          </div>
+          <div class="subsections-grid" id="subsectionsGrid"></div>
+        </section>
+      </div>
+
+      <!-- Right Column: Sticky Session Schedule & Deep Search Results -->
+      <aside class="sidebar-col" aria-label="Conference schedule and search results">
+        <div class="sidebar-panel">
+          <div class="sidebar-header">
+            <div class="sidebar-title-wrap">
+              <h2 class="sidebar-title" id="sidebarTitle">Conference Schedule</h2>
+              <span class="sidebar-count" id="sidebarCount"></span>
+            </div>
+            <div class="sidebar-tools">
+              <button type="button" class="mini-link-btn" id="scrollActiveBtn" title="Scroll to active talk">Active talk</button>
+              <button type="button" class="mini-link-btn" id="toggleExpandAllBtn">Collapse all</button>
+            </div>
+          </div>
+
+          <div class="sidebar-list" id="sidebarList"></div>
+        </div>
+      </aside>
+    </section>
+
+    <!-- VIEW 2: FULL VISUAL CATALOG GRID -->
+    <section class="catalog-view" id="catalogView" hidden>
+      <div class="catalog-header">
+        <div>
+          <h1 class="page-view-title">Browse Recorded Talks &amp; Visual Chapters</h1>
+          <p class="page-view-sub" id="catalogSubtitle">Explore every keynote, oral, spotlight, panel, and sponsor session with instant visual chapter previews.</p>
+        </div>
+      </div>
+      <div id="catalogContainer"></div>
+    </section>
+
+    <!-- VIEW 3: ALL 687 ACCEPTED PAPERS DIRECTORY -->
+    <section class="papers-view" id="papersView" hidden>
+      <div class="catalog-header">
+        <div>
+          <h1 class="page-view-title">All 687 Accepted CoRL 2026 Papers</h1>
+          <p class="page-view-sub">Includes all 21 Orals, 72 Spotlights (linked directly to their livestream talk &amp; timestamp), and 687 Poster assignments with OpenReview links.</p>
+        </div>
+        <div class="papers-filter-row">
+          <button type="button" class="chip is-active" data-pfilter="all">All 687 Papers</button>
+          <button type="button" class="chip" data-pfilter="recorded">With Video Talk (Oral / Spotlight)</button>
+          <button type="button" class="chip" data-pfilter="award">Award Finalists</button>
+          <button type="button" class="chip" data-pfilter="p1">Poster Session 1 (Mon)</button>
+          <button type="button" class="chip" data-pfilter="p2">Poster Session 2 (Tue)</button>
+          <button type="button" class="chip" data-pfilter="p3">Poster Session 3 (Wed)</button>
+        </div>
+      </div>
+      <div class="papers-table-card">
+        <div class="papers-count-bar" id="papersCountBar"></div>
+        <div class="table-scroll">
+          <table class="papers-table">
+            <thead>
+              <tr>
+                <th>Session / Board</th>
+                <th>Paper Title</th>
+                <th>Presentation &amp; Video</th>
+                <th>Paper</th>
+              </tr>
+            </thead>
+            <tbody id="papersTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Key Visual Lightbox Modal -->
+  <div class="lightbox" id="lightboxModal" hidden role="dialog" aria-modal="true" aria-labelledby="lightboxTitle">
+    <div class="lightbox-backdrop" id="lightboxBackdrop"></div>
+    <div class="lightbox-dialog">
+      <div class="lightbox-top">
+        <div class="lightbox-meta">
+          <span class="mono-badge" id="lightboxTime">00:00</span>
+          <span class="lightbox-talk-name" id="lightboxTalkName"></span>
+        </div>
+        <button type="button" class="icon-btn" id="lightboxCloseBtn" aria-label="Close visual preview">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="lightbox-img-wrap">
+        <button type="button" class="lightbox-nav prev" id="lightboxPrevBtn" title="Previous chapter visual (←)">
+          <span class="material-symbols-outlined">chevron_left</span>
+        </button>
+        <img id="lightboxImg" src="" alt="" />
+        <button type="button" class="lightbox-nav next" id="lightboxNextBtn" title="Next chapter visual (→)">
+          <span class="material-symbols-outlined">chevron_right</span>
+        </button>
+      </div>
+      <div class="lightbox-body">
+        <div class="lightbox-body-copy">
+          <h3 id="lightboxTitle"></h3>
+          <p id="lightboxSummary"></p>
+          <p class="lightbox-caption" id="lightboxCaption"></p>
+        </div>
+        <button type="button" class="primary-play-btn" id="lightboxPlayBtn">
+          <span class="material-symbols-outlined">play_arrow</span>
+          <span id="lightboxPlayLabel">Play from 00:00</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <span>CoRL 2026 Interactive Session Archive · Program &amp; Livestreams from <a href="https://www.corl.org/program" target="_blank" rel="noopener">corl.org/program</a></span>
+      <span>Shortcuts: <kbd>/</kbd> search · <kbd>J</kbd>/<kbd>K</kbd> prev/next chapter · <kbd>Esc</kbd> clear/close</span>
+    </div>
+  </footer>
+
+  <script src="./data/corl2026_data.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
