@@ -34,3 +34,7 @@ Configured directly after `<head>` in `index.html` (`GTM-MV573X8K`), with custom
 ```bash
 python3 -m http.server 8765 --directory /usr/local/google/home/pengxu/corl2026-sessions
 ```
+
+## Contact
+
+Questions, corrections, or feedback: <sippey@gmail.com>
