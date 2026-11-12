@@ -223,30 +223,34 @@
     mount.innerHTML = `<iframe src="https://www.youtube.com/embed/${encodeURIComponent(videoId)}?start=${Math.floor(startSec)}&autoplay=${ap}&rel=0&modestbranding=1&playsinline=1" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen title="CoRL 2026 Livestream Player"></iframe>`;
   }
 
-  function initPlayer() {
-    const first = TALK_BY_ID.get(state.activeTalkId) || TALKS[0];
-    if (!first) return;
-    const initVid = pendingSeek ? pendingSeek.videoId : first.video_id;
-    const initSec = pendingSeek ? pendingSeek.sec : first.start_sec;
-    const shouldAuto = pendingSeek ? pendingSeek.autoplay : false;
+  function mountYtInstance(videoId, startSec, autoplay) {
+    if (ytPlayer && typeof ytPlayer.destroy === 'function') {
+      try {
+        ytPlayer.destroy();
+      } catch (_) {}
+    }
+    ytReady = false;
+    state.activeVideoId = videoId;
+
+    const aspect = document.querySelector('.video-aspect');
+    if (aspect && !document.getElementById('ytPlayerMount')) {
+      aspect.innerHTML = '<div id="ytPlayerMount"></div>';
+    }
 
     ytPlayer = new window.YT.Player('ytPlayerMount', {
-      videoId: initVid,
+      videoId: videoId,
       playerVars: {
-        start: Math.floor(initSec),
-        autoplay: shouldAuto ? 1 : 0,
+        start: Math.floor(startSec),
+        autoplay: autoplay ? 1 : 0,
         rel: 0,
         modestbranding: 1,
         playsinline: 1,
-         origin: window.location.origin.startsWith('http') ? window.location.origin : undefined,
       },
       events: {
         onReady: () => {
           ytReady = true;
-          state.activeVideoId = initVid;
-          if (pendingSeek) {
-            playVideoAt(pendingSeek.videoId, pendingSeek.sec, pendingSeek.autoplay);
-            pendingSeek = null;
+          if (state.playbackRate !== 1 && typeof ytPlayer.setPlaybackRate === 'function') {
+            ytPlayer.setPlaybackRate(state.playbackRate);
           }
           startPlayheadPolling();
         },
@@ -258,35 +262,41 @@
     });
   }
 
+  function initPlayer() {
+    const first = TALK_BY_ID.get(state.activeTalkId) || TALKS[0];
+    if (!first) return;
+    const initVid = pendingSeek ? pendingSeek.videoId : first.video_id;
+    const initSec = pendingSeek ? pendingSeek.sec : first.start_sec;
+    const shouldAuto = pendingSeek ? pendingSeek.autoplay : false;
+    pendingSeek = null;
+    mountYtInstance(initVid, initSec, shouldAuto);
+  }
+
   function playVideoAt(videoId, sec, autoplay = true) {
     sec = Math.max(0, Math.floor(sec));
     state.currentPlaySec = sec;
     el.currentClock.textContent = fmtHms(sec);
     updateExternalLink(videoId, sec);
 
-    if (!ytReady || !ytPlayer || typeof ytPlayer.loadVideoById !== 'function') {
+    if (!window.YT || !window.YT.Player) {
       pendingSeek = { videoId, sec, autoplay };
-      // If YT API failed to load after 3s, ensure direct iframe works
-      if (!window.YT) {
-        mountFallbackIframe(videoId, sec, autoplay);
-      }
       updatePlaybackHighlights(sec);
       return;
     }
 
-    if (state.activeVideoId === videoId) {
+    // For unlisted livestream archives, switching videoId via loadVideoById drops YouTube's
+    // per-video embed token; mounting a fresh YT.Player instance fetches a valid embed token,
+    // while seeking within the same livestream stays instant via seekTo().
+    if (ytReady && ytPlayer && state.activeVideoId === videoId && typeof ytPlayer.seekTo === 'function') {
       ytPlayer.seekTo(sec, true);
-      if (autoplay) ytPlayer.playVideo();
-    } else {
-      state.activeVideoId = videoId;
-      if (autoplay) {
-        ytPlayer.loadVideoById({ videoId, startSeconds: sec });
-      } else {
-        ytPlayer.cueVideoById({ videoId, startSeconds: sec });
+      if (autoplay && typeof ytPlayer.playVideo === 'function') {
+        ytPlayer.playVideo();
       }
-    }
-    if (state.playbackRate !== 1 && typeof ytPlayer.setPlaybackRate === 'function') {
-      ytPlayer.setPlaybackRate(state.playbackRate);
+      if (state.playbackRate !== 1 && typeof ytPlayer.setPlaybackRate === 'function') {
+        ytPlayer.setPlaybackRate(state.playbackRate);
+      }
+    } else {
+      mountYtInstance(videoId, sec, autoplay);
     }
     updatePlaybackHighlights(sec);
   }
