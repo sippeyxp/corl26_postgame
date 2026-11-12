@@ -165,6 +165,12 @@
     }, 2600);
   }
 
+  function trackEvent(eventName, params = {}) {
+    const id = (window.GA_MEASUREMENT_ID || '').trim();
+    if (!id || id === 'G-XXXXXXXXXX' || typeof window.gtag !== 'function') return;
+    window.gtag('event', eventName, params);
+  }
+
   // Prebuild search text per talk & subsection for instant (<3ms) search
   TALKS.forEach((t) => {
     const topParts = [
@@ -442,6 +448,27 @@
     highlightActiveSidebarItem();
     playVideoAt(talk.video_id, targetSec, autoplay);
     updateHash(talk.id, targetSec);
+
+    if (seekSec !== null && seekSec !== talk.start_sec) {
+      const matchedSub = (talk.subsections || []).find(
+        (s) => Math.abs(s.start_sec - seekSec) <= 3 || (seekSec >= s.start_sec && seekSec < s.end_sec)
+      );
+      trackEvent('select_subsection', {
+        talk_id: talk.id,
+        talk_title: talk.title,
+        session_code: talk.session_code,
+        subsection_title: matchedSub ? matchedSub.title : '',
+        start_sec: targetSec,
+      });
+    } else {
+      trackEvent('select_talk', {
+        talk_id: talk.id,
+        talk_title: talk.title,
+        session_code: talk.session_code,
+        talk_type: talk.talk_type,
+        presenter: (talk.presenters || []).join(', '),
+      });
+    }
   }
 
   function renderActiveTalk(talk) {
@@ -865,6 +892,7 @@
     el.theaterView.hidden = viewName !== 'theater';
     el.catalogView.hidden = viewName !== 'catalog';
     el.papersView.hidden = viewName !== 'papers';
+    trackEvent('view_mode_change', { view_mode: viewName });
     if (doRefresh) refreshAll();
   }
 
@@ -876,6 +904,12 @@
     state.lightboxSubIdx = subIdx;
     updateLightboxContent();
     el.lightboxModal.hidden = false;
+    trackEvent('zoom_visual', {
+      talk_id: talk.id,
+      talk_title: talk.title,
+      subsection_title: talk.subsections[subIdx].title,
+      visual_sec: talk.subsections[subIdx].visual_sec,
+    });
   }
 
   function updateLightboxContent() {
@@ -921,10 +955,21 @@
 
   // Event Listeners
   function bindEvents() {
+    let searchTrackTimer = null;
     // Search input
     el.searchInput.addEventListener('input', (e) => {
       state.query = e.target.value;
       refreshAll();
+      clearTimeout(searchTrackTimer);
+      const q = state.query.trim();
+      if (q.length >= 2) {
+        searchTrackTimer = setTimeout(() => {
+          trackEvent('search', {
+            search_term: q,
+            results_count: getFilteredTalks().length,
+          });
+        }, 650);
+      }
     });
 
     el.clearSearchBtn.addEventListener('click', () => {
@@ -963,6 +1008,7 @@
       chip.addEventListener('click', () => {
         state.day = chip.dataset.day;
         el.dayChips.forEach((c) => c.classList.toggle('is-active', c === chip));
+        trackEvent('filter_change', { filter_kind: 'day', filter_value: state.day });
         refreshAll();
       });
     });
@@ -972,6 +1018,7 @@
       chip.addEventListener('click', () => {
         state.type = chip.dataset.type;
         el.typeChips.forEach((c) => c.classList.toggle('is-active', c === chip));
+        trackEvent('filter_change', { filter_kind: 'session_type', filter_value: state.type });
         refreshAll();
       });
     });
@@ -1130,12 +1177,23 @@
     el.shareMomentBtn.addEventListener('click', () => {
       updateHash(state.activeTalkId, state.currentPlaySec);
       const url = window.location.href;
+      trackEvent('share_moment', {
+        talk_id: state.activeTalkId,
+        timestamp_sec: state.currentPlaySec,
+      });
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(url).then(() => {
           showToast(`Copied link to ${fmtHms(state.currentPlaySec)}`);
         });
       } else {
         showToast(`Link updated in address bar (${fmtHms(state.currentPlaySec)})`);
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest('a[href*="openreview.net"]');
+      if (a) {
+        trackEvent('outbound_paper_click', { openreview_url: a.href });
       }
     });
 

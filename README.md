@@ -25,6 +25,16 @@ git push -u origin main
 Then in **https://github.com/sippeyxp/corl26_postgame/settings/pages**:
 Set **Build and deployment → Source** to **GitHub Actions** (using the included `.github/workflows/deploy-pages.yml`) or **Deploy from a branch (`main` / `/ (root)`)**.
 
+## Google Analytics (GA4)
+
+Google Analytics 4 (`gtag.js` + custom events for talk views, subsection jumps, visual zooms, searches, filters, moment shares, and OpenReview clicks) is configured in `analytics-config.js`:
+
+```js
+window.GA_MEASUREMENT_ID = 'G-XXXXXXXXXX';
+```
+
+Replace `'G-XXXXXXXXXX'` with your GA4 Measurement ID from <https://analytics.google.com/>.
+
 ## Local Preview
 
 ```bash
