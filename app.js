@@ -166,8 +166,7 @@
   }
 
   function trackEvent(eventName, params = {}) {
-    const id = (window.GA_MEASUREMENT_ID || '').trim();
-    if (!id || id === 'G-XXXXXXXXXX' || typeof window.gtag !== 'function') return;
+    if (typeof window.gtag !== 'function') return;
     window.gtag('event', eventName, params);
   }
 
